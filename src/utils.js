@@ -96,10 +96,9 @@ function normalizePath(file) {
   return path.sep === "\\" ? file.replace(/\\/g, "/") : file;
 }
 
+// filename reserved characters + control characters + dots + `@` for scoped packages
 // eslint-disable-next-line no-control-regex
-const filenameReservedRegex = /[<>:"/\\|?*]/g;
-// eslint-disable-next-line no-control-regex
-const reControlChars = /[\u0000-\u001f\u0080-\u009f]/g;
+const unallowedCharacters = /[<>:"/\\|?*\u0000-\u001f\u0080-\u009f.@]/g;
 
 function escapeLocalIdent(localident) {
   // TODO simplify in the next major release
@@ -107,9 +106,7 @@ function escapeLocalIdent(localident) {
     localident
       // For `[hash]` placeholder
       .replace(/^((-?[0-9])|--)/, "_$1")
-      .replace(filenameReservedRegex, "-")
-      .replace(reControlChars, "-")
-      .replace(/\./g, "-")
+      .replace(unallowedCharacters, "-")
   );
 }
 
