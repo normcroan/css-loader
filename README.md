@@ -580,7 +580,7 @@ module.exports = {
             mode: "local",
             auto: true,
             exportGlobals: true,
-            localIdentName: "[path][name]__[local]--[hash:base64:5]",
+            localIdentName: "[path][name]__[local]--[contenthash]",
             localIdentContext: path.resolve(__dirname, "src"),
             localIdentHashPrefix: "my-custom-hash",
             namedExport: true,
@@ -754,15 +754,31 @@ module.exports = {
 ##### `localIdentName`
 
 Type: `String`
-Default: `'[hash:base64]'`
+Default: `'[contenthash]'`
 
 Allows to configure the generated local ident name.
-See [loader-utils's documentation](https://github.com/webpack/loader-utils#interpolatename) for more information on options.
+
+For more information on options see:
+
+- [webpack template strings](https://webpack.js.org/configuration/output/#template-strings),
+- [output.hashdigest](https://webpack.js.org/configuration/output/#outputhashdigest),
+- [output.hashDigestLength](https://webpack.js.org/configuration/output/#outputhashdigestlength),
+- [output.hashFunction](https://webpack.js.org/configuration/output/#outputhashfunction),
+- [output.hashSalt](https://webpack.js.org/configuration/output/#outputhashsalt).
+
+Supported template strings:
+
+- [name] the basename of the resource
+- [path] the path of the resource relative to the `compiler.context` option or `modules.localIdentContext` option.
+- [file] - filename and path.
+- [ext] - extension with leading .
+- [contenthash] - the hash of the string, generated based on `hashPrefix`, `localIdentContext`, `resourcePath` and `exportName`
+- [local] - original class.
 
 Recommendations:
 
-- use `'[path][name]__[local]'` for development
-- use `'[hash:base64]'` for production
+- use `'[file]__[local]'` for development
+- use `'[contenthash]'` for production
 
 The `[local]` placeholder contains original class.
 
@@ -779,7 +795,7 @@ module.exports = {
         loader: "css-loader",
         options: {
           modules: {
-            localIdentName: "[path][name]__[local]--[hash:base64:5]",
+            localIdentName: "[path][name]__[local]--[contenthash]",
           },
         },
       },

@@ -5,7 +5,6 @@
 import { fileURLToPath } from "url";
 import path from "path";
 
-import { interpolateName } from "loader-utils";
 import modulesValues from "postcss-modules-values";
 import localByDefault from "postcss-modules-local-by-default";
 import extractImports from "postcss-modules-extract-imports";
@@ -25,9 +24,7 @@ function isRelativePath(str) {
 
 function stringifyRequest(loaderContext, request) {
   const splitted = request.split("!");
-  const context =
-    loaderContext.context ||
-    (loaderContext.options && loaderContext.options.context);
+  const { context } = loaderContext;
 
   return JSON.stringify(
     splitted
@@ -63,11 +60,6 @@ function stringifyRequest(loaderContext, request) {
 const matchNativeWin32Path = /^[A-Z]:[/\\]|^\\\\/i;
 
 function urlToRequest(url, root) {
-  // Do not rewrite an empty url
-  if (url === "") {
-    return "";
-  }
-
   const moduleRequestRegex = /^[^?]*~/;
   let request;
 
@@ -75,13 +67,7 @@ function urlToRequest(url, root) {
     // absolute windows path, keep it
     request = url;
   } else if (typeof root !== "undefined" && /^\//.test(url)) {
-    // if root is set and the url is root-relative
-    // special case: `~` roots convert to module request
-    if (moduleRequestRegex.test(root)) {
-      request = root.replace(/([^~/])$/, "$1/") + url.slice(1);
-    } else {
-      request = root + url;
-    }
+    request = root + url;
   } else if (/^\.\.?\//.test(url)) {
     // A relative url stays
     request = url;
@@ -347,7 +333,45 @@ function defaultGetLocalIdent(
   // eslint-disable-next-line no-param-reassign
   options.content = `${options.hashPrefix}${relativeMatchResource}${relativeResourcePath}\x00${localName}`;
 
-  return interpolateName(loaderContext, localIdentName, options);
+  // eslint-disable-next-line no-underscore-dangle
+  const { outputOptions } = loaderContext._compilation;
+  const {
+    hashDigest,
+    hashDigestLength,
+    hashFunction,
+    hashSalt,
+  } = outputOptions;
+  // eslint-disable-next-line no-underscore-dangle
+  const hash = loaderContext._compiler.webpack.util.createHash(hashFunction);
+  // eslint-disable-next-line no-underscore-dangle
+
+  if (hashSalt) {
+    hash.update(hashSalt);
+  }
+
+  hash.update(options.content);
+
+  const contentHash = hash.digest(hashDigest).slice(0, hashDigestLength);
+  const ext = path.extname(loaderContext.resourcePath);
+  const base = path.basename(loaderContext.resourcePath);
+  const name = base.slice(0, base.length - ext.length);
+  const data = {
+    filename: path.relative(options.context, loaderContext.resourcePath),
+    contentHash,
+    chunk: {
+      name,
+      id: "[id]",
+      hash: contentHash,
+      contentHash,
+    },
+  };
+
+  const {
+    path: interpolatedFilename,
+    // eslint-disable-next-line no-underscore-dangle
+  } = loaderContext._compilation.getPathWithInfo(localIdentName, data);
+
+  return interpolatedFilename;
 }
 
 const NATIVE_WIN32_PATH = /^[A-Z]:[/\\]|^\\\\/i;
@@ -446,7 +470,7 @@ function getModulesOptions(rawOptions, loaderContext) {
     auto: true,
     mode: isIcss ? "icss" : "local",
     exportGlobals: false,
-    localIdentName: "[hash:base64]",
+    localIdentName: "[contenthash]",
     localIdentContext: loaderContext.rootContext,
     localIdentHashPrefix: "",
     // eslint-disable-next-line no-undefined
